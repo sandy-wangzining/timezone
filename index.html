@@ -1,0 +1,850 @@
+<title>时间戳对照台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   设计令牌
+   仪表盘配色：冷调石板灰做底，钢蓝做交互色，琥珀专门表示「夏令时生效中」。
+   琥珀只承担语义（信号灯、收藏星），不当装饰色，避免和交互色抢注意力。
+   三种主题状态都要覆盖：亮色 / 系统暗色 / 显式暗色。
+   ═══════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#edf0f4;          /* 页面底色 */
+  --panel:#ffffff;       /* 卡片面 */
+  --panel-2:#f5f7fa;     /* 卡片内凹面：输入框、表头 */
+  --ink:#111922;         /* 主文字 */
+  --ink-2:#495663;       /* 次要文字 */
+  --ink-3:#7b8894;       /* 弱化文字：标签、单位 */
+  --line:#d4dce4;        /* 主边框 */
+  --line-2:#e6ebf0;      /* 分隔线 */
+  --accent:#2b5f96;      /* 交互色 */
+  --accent-ink:#ffffff;
+  --accent-soft:#e1ecf8;
+  --dst:#a55a0a;         /* 语义色：夏令时生效中 */
+  --dst-soft:#fbeedc;
+  --std:#5a6a77;         /* 语义色：标准时 */
+  --std-soft:#e5eaee;
+  --shadow:0 1px 2px rgba(17,25,34,.05),0 12px 30px -16px rgba(17,25,34,.22);
+  --grid:rgba(17,25,34,.038);
+  --r:13px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b1015; --panel:#141c25; --panel-2:#0f1720;
+    --ink:#e9eff5; --ink-2:#a8b6c1; --ink-3:#77858f;
+    --line:#243039; --line-2:#1a232c;
+    --accent:#7fb6ea; --accent-ink:#0b1015; --accent-soft:#15283a;
+    --dst:#eaa65f; --dst-soft:#31230e;
+    --std:#8b9aa7; --std-soft:#1b2530;
+    --shadow:0 1px 2px rgba(0,0,0,.5),0 12px 30px -16px rgba(0,0,0,.8);
+    --grid:rgba(233,239,245,.042);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b1015; --panel:#141c25; --panel-2:#0f1720;
+  --ink:#e9eff5; --ink-2:#a8b6c1; --ink-3:#77858f;
+  --line:#243039; --line-2:#1a232c;
+  --accent:#7fb6ea; --accent-ink:#0b1015; --accent-soft:#15283a;
+  --dst:#eaa65f; --dst-soft:#31230e;
+  --std:#8b9aa7; --std-soft:#1b2530;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 12px 30px -16px rgba(0,0,0,.8);
+  --grid:rgba(233,239,245,.042);
+}
+
+/* ═══ 排版基础 ═══════════════════════════════════════════════════
+   拉丁字面用 Archivo，中文交给系统字体（PingFang / 微软雅黑），
+   数字一律走 IBM Plex Mono 并开等宽数字，保证纵向对齐不跳动。
+   ═══════════════════════════════════════════════════════════════ */
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--bg);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),
+                   linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:64px 64px;
+  color:var(--ink);
+  font-family:Archivo,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,
+              "PingFang SC","Hiragino Sans GB","Microsoft YaHei UI","Microsoft YaHei",
+              "Source Han Sans SC","Noto Sans CJK SC",sans-serif;
+  font-size:15px; line-height:1.62;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      font-variant-numeric:tabular-nums;font-feature-settings:"zero" 1}
+.wrap{max-width:1560px;margin:0 auto;padding:32px 24px 84px}
+
+/* ═══ 页眉与实时条 ═══════════════════════════════════════════════ */
+header{display:flex;flex-wrap:wrap;align-items:flex-end;gap:20px 30px;margin-bottom:26px}
+h1{font-size:clamp(24px,3.2vw,32px);font-weight:700;letter-spacing:-.022em;line-height:1.2;
+   margin:0;text-wrap:balance}
+.sub{color:var(--ink-2);font-size:13.5px;line-height:1.6;margin:6px 0 0;max-width:58ch}
+
+.nowbar{margin-left:auto;display:flex;align-items:stretch;flex-wrap:wrap;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--shadow);overflow:hidden}
+.ncell{padding:10px 18px;border-right:1px solid var(--line-2);
+  display:flex;flex-direction:column;justify-content:center}
+.ncell .lab{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:600;line-height:1.5}
+.ncell .val{font-size:17px;font-weight:600;letter-spacing:-.015em;line-height:1.3;margin-top:2px}
+.ncell.hl{background:var(--accent-soft)}
+.ncell.hl .lab,.ncell.hl .val{color:var(--accent)}
+.nowbar button{border:none;border-left:1px solid var(--line-2);border-radius:0;padding:0 18px}
+@media (max-width:900px){
+  .nowbar{margin-left:0;width:100%}
+  .ncell{flex:1}
+}
+
+/* ═══ 转换面板 ═══════════════════════════════════════════════════
+   auto-fit 让面板自适应任意屏宽：塞得下三列就三列，否则自动降到两列、一列。
+   空轨道会被折叠，所以三个面板永远均分整行，不会出现半截空位。
+   ═══════════════════════════════════════════════════════════════ */
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:17px;align-items:stretch}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
+.phead{display:flex;align-items:center;gap:10px;padding:14px 17px;
+  border-bottom:1px solid var(--line-2);background:var(--panel-2)}
+.pnum{font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:600;
+  color:var(--accent);background:var(--accent-soft);border-radius:5px;padding:2px 7px;letter-spacing:.06em}
+.phead h2{font-size:14.5px;font-weight:600;margin:0;letter-spacing:-.008em}
+.phead .dir{margin-left:auto;font-size:10.5px;color:var(--ink-3);
+  font-family:"IBM Plex Mono",monospace;letter-spacing:.03em}
+.pbody{padding:17px;display:flex;flex-direction:column;flex:1}
+
+label.fl{display:block;font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:600;margin-bottom:7px;line-height:1.4}
+.row{display:flex;gap:8px}
+input[type=text],select{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel-2);color:var(--ink);font-size:15px;font-family:inherit;
+  transition:border-color .13s,background .13s}
+input[type=text]{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;
+  letter-spacing:.004em}
+input[type=text]:hover,select:hover{border-color:var(--ink-3)}
+input[type=text]:focus{background:var(--panel)}
+select{font-size:13.5px;cursor:pointer;appearance:none;padding-right:34px;
+  background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),
+                   linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);
+  background-position:calc(100% - 17px) 52%,calc(100% - 12px) 52%;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{
+  outline:2px solid var(--accent);outline-offset:2px}
+.hint{font-size:11.5px;color:var(--ink-3);margin:8px 0 0;line-height:1.55}
+.tzhint{margin-top:7px}
+.tzhint b{color:var(--ink-2);font-weight:600}
+.tzhint a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
+.tzhint a:hover{border-bottom-color:var(--accent)}
+.err{font-size:12px;color:var(--dst);margin:8px 0 0;font-weight:500;min-height:1px;line-height:1.5}
+
+button{font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;
+  border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2);
+  border-radius:10px;padding:10px 14px;white-space:nowrap;
+  transition:background .13s,color .13s,border-color .13s}
+button:hover{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+button:active{transform:translateY(.5px)}
+
+.arrow{display:flex;align-items:center;gap:11px;padding:11px 0 8px}
+.arrow::before,.arrow::after{content:"";flex:1;height:1px;background:var(--line-2)}
+.arrow button{padding:4px 12px;font-size:11.5px;border-radius:20px}
+
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel-2)}
+.seg button{border:none;border-radius:0;padding:7px 12px;font-size:12px;background:transparent;
+  color:var(--ink-3);border-right:1px solid var(--line)}
+.seg button:last-child{border-right:none}
+.seg button:hover{background:var(--accent-soft);color:var(--accent)}
+.seg button[aria-pressed="true"],.seg button[aria-pressed="true"]:hover{
+  background:var(--accent);color:var(--accent-ink)}
+.unitrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:11px}
+.badge{font-size:11px;font-weight:600;font-family:"IBM Plex Mono",monospace;letter-spacing:.01em;
+  padding:3.5px 10px;border-radius:20px;background:var(--std-soft);color:var(--std);white-space:nowrap}
+.badge.hit{background:var(--accent-soft);color:var(--accent)}
+
+.out{margin-top:auto;padding-top:16px;border-top:1px solid var(--line-2);
+  display:flex;flex-direction:column;gap:11px}
+.outrow{display:flex;align-items:baseline;gap:10px}
+.outrow .k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+  width:82px;flex:none;font-weight:600}
+.outrow .v{font-size:14.5px;font-weight:500;flex:1;word-break:break-all;letter-spacing:-.005em}
+.outrow .v.big{font-size:21px;font-weight:600;letter-spacing:-.025em}
+.cp{font-size:10.5px;padding:3.5px 9px;border-radius:7px;flex:none;font-weight:500}
+
+/* ═══ 时区清单 ═══════════════════════════════════════════════════ */
+.boardhead{display:flex;flex-wrap:wrap;align-items:center;gap:13px;margin:38px 0 13px;scroll-margin-top:16px}
+.boardhead h2{font-size:18px;font-weight:700;margin:0;letter-spacing:-.018em}
+.boardhead .note{font-size:12.5px;color:var(--ink-3)}
+.filter{margin-left:auto;max-width:280px;flex:1;min-width:180px}
+.filter input{padding:9px 13px;font-size:13.5px;font-family:inherit}
+
+.tablewrap{overflow:auto;max-height:min(68vh,760px);border:1px solid var(--line);
+  border-radius:var(--r);background:var(--panel);box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;min-width:740px}
+thead th{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:600;
+  text-align:left;padding:12px 15px;background:var(--panel-2);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:2}
+tbody td{padding:11px 15px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--panel-2)}
+/* 收藏行左侧一道琥珀渐隐，扫一眼就能认出来 */
+tbody tr.fav{background:linear-gradient(90deg,var(--dst-soft) 0,transparent 44%)}
+
+.star{border:none;background:transparent;padding:3px 5px;border-radius:7px;
+  font-size:18px;line-height:1;color:var(--ink-3);cursor:pointer;
+  transition:color .13s,background .13s,transform .13s}
+.star:hover{background:var(--accent-soft);color:var(--accent);transform:scale(1.12)}
+.star.on{color:var(--dst)}
+.star.on:hover{background:var(--dst-soft);color:var(--dst)}
+
+.zname{font-weight:600;font-size:14px;letter-spacing:-.005em}
+.zid{font-size:10.5px;color:var(--ink-3);font-family:"IBM Plex Mono",monospace;margin-top:2px}
+.off{font-size:14.5px;font-weight:600;letter-spacing:-.015em}
+.abbr{font-size:10.5px;color:var(--ink-3);font-family:"IBM Plex Mono",monospace;margin-left:6px}
+.clock{font-size:16.5px;font-weight:600;letter-spacing:-.02em}
+.cdate{font-size:10.5px;color:var(--ink-3);margin-top:2px}
+
+/* 夏令时信号灯：实心琥珀=正在夏令时，空心灰=标准时，无灯=该时区不实行 */
+.lamp{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;
+  padding:3px 10px 3px 8px;border-radius:20px;white-space:nowrap}
+.lamp i{width:7px;height:7px;border-radius:50%;flex:none}
+.lamp.on{background:var(--dst-soft);color:var(--dst)}
+.lamp.on i{background:var(--dst);box-shadow:0 0 0 3px color-mix(in srgb,var(--dst) 20%,transparent)}
+.lamp.off{background:var(--std-soft);color:var(--std)}
+.lamp.off i{background:var(--std);opacity:.5}
+.lamp.none{background:transparent;color:var(--ink-3);font-weight:500;padding-left:0}
+.lamp.none i{background:var(--ink-3);opacity:.25}
+.shift{font-size:10.5px;color:var(--ink-3);display:block;margin-top:3px}
+
+.empty{padding:46px 20px;text-align:center;color:var(--ink-3)}
+.empty b{display:block;color:var(--ink-2);font-size:15px;font-weight:600;margin-bottom:7px}
+.empty span{font-size:13px;line-height:1.6}
+
+/* ═══ 说明区 ═════════════════════════════════════════════════════ */
+.note-panel{margin-top:32px;border:1px solid var(--line);border-radius:var(--r);
+  background:var(--panel);box-shadow:var(--shadow);padding:24px 26px}
+.note-panel h2{font-size:16.5px;font-weight:700;margin:0 0 12px;letter-spacing:-.016em}
+.note-panel p{margin:0 0 12px;color:var(--ink-2);font-size:14px;line-height:1.68;max-width:74ch}
+.note-panel strong{color:var(--ink);font-weight:600}
+.cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:13px;margin:16px 0 4px}
+.cmp div{border:1px solid var(--line-2);border-radius:11px;padding:14px 16px;background:var(--panel-2)}
+.cmp .t{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);
+  font-weight:600;margin-bottom:6px}
+.cmp .b{font-size:15.5px;font-weight:600;letter-spacing:-.015em}
+.cmp .c{font-size:12.5px;color:var(--ink-2);margin-top:5px;line-height:1.55}
+
+footer{margin-top:36px;color:var(--ink-3);font-size:12.5px;
+  display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center}
+kbd{font-family:"IBM Plex Mono",monospace;font-size:11.5px;border:1px solid var(--line);
+  border-bottom-width:2px;border-radius:5px;padding:1px 6px;background:var(--panel-2);color:var(--ink-2)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>时间戳对照台</h1>
+    <p class="sub">时间戳与日期时间互转、时区互转，并列出各时区的 UTC 偏移、夏令时状态与当前时间。</p>
+  </div>
+  <div class="nowbar">
+    <div class="ncell"><span class="lab">此刻 · 秒</span><span class="val mono" id="nowS">—</span></div>
+    <div class="ncell"><span class="lab">毫秒</span><span class="val mono" id="nowMs">—</span></div>
+    <div class="ncell hl"><span class="lab">北京时间</span><span class="val mono" id="nowBJ">—</span></div>
+    <button id="useNow">三栏都取此刻</button>
+  </div>
+</header>
+
+<div class="grid3">
+
+  <!-- 01 时间戳 → 日期时间 -->
+  <section class="panel">
+    <div class="phead"><span class="pnum">01</span><h2>时间戳 → 日期时间</h2><span class="dir">unix → wall</span></div>
+    <div class="pbody">
+      <label class="fl" for="tsIn">Unix 时间戳</label>
+      <div class="row">
+        <input type="text" id="tsIn" inputmode="numeric" placeholder="1786940743" autocomplete="off" spellcheck="false">
+        <button id="tsNow">此刻</button>
+      </div>
+      <div class="unitrow">
+        <span class="seg" role="group" aria-label="时间戳单位">
+          <button id="uAuto" aria-pressed="true">自动</button>
+          <button id="uS" aria-pressed="false">秒</button>
+          <button id="uMs" aria-pressed="false">毫秒</button>
+        </span>
+        <span class="badge" id="tsDetect">等待输入</span>
+      </div>
+      <p class="hint">10 位当秒、13 位当毫秒，也认小数秒、微秒和纳秒。</p>
+      <p class="err" id="tsErr"></p>
+
+      <label class="fl" for="tsZone" style="margin-top:15px">显示时区</label>
+      <select id="tsZone"></select>
+      <p class="hint tzhint">下拉框只列<b>已收藏</b>的时区 · <a href="#zonelist">去清单加 ☆</a></p>
+
+      <div class="out">
+        <div class="outrow"><span class="k">日期时间</span><span class="v big mono" id="tsOutDt">—</span><button class="cp" data-copy="tsOutDt">复制</button></div>
+        <div class="outrow"><span class="k">ISO 8601</span><span class="v mono" id="tsOutIso">—</span><button class="cp" data-copy="tsOutIso">复制</button></div>
+        <div class="outrow"><span class="k">UTC</span><span class="v mono" id="tsOutUtc">—</span><button class="cp" data-copy="tsOutUtc">复制</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 日期时间 → 时间戳 -->
+  <section class="panel">
+    <div class="phead"><span class="pnum">02</span><h2>日期时间 → 时间戳</h2><span class="dir">wall → unix</span></div>
+    <div class="pbody">
+      <label class="fl" for="dtIn">日期时间</label>
+      <div class="row">
+        <input type="text" id="dtIn" placeholder="2026-08-17 12:25:43" autocomplete="off" spellcheck="false">
+        <button id="dtNow">此刻</button>
+      </div>
+      <p class="hint">支持 <span class="mono">YYYY-MM-DD HH:mm:ss</span>、<span class="mono">YYYY/M/D H:m</span>、仅日期、带毫秒。</p>
+      <p class="err" id="dtErr"></p>
+
+      <label class="fl" for="dtZone" style="margin-top:15px">这个读数属于哪个时区</label>
+      <select id="dtZone"></select>
+      <p class="hint tzhint">下拉框只列<b>已收藏</b>的时区 · <a href="#zonelist">去清单加 ☆</a></p>
+
+      <div class="out">
+        <div class="outrow"><span class="k">秒 10 位</span><span class="v big mono" id="dtOutS">—</span><button class="cp" data-copy="dtOutS">复制</button></div>
+        <div class="outrow"><span class="k">毫秒 13 位</span><span class="v mono" id="dtOutMs">—</span><button class="cp" data-copy="dtOutMs">复制</button></div>
+        <div class="outrow"><span class="k">该时区</span><span class="v mono" id="dtOutOff">—</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 日期时间 → 日期时间（跨时区换算）-->
+  <section class="panel">
+    <div class="phead"><span class="pnum">03</span><h2>日期时间 → 日期时间</h2><span class="dir">tz → tz</span></div>
+    <div class="pbody">
+      <label class="fl" for="cvIn">日期时间</label>
+      <div class="row">
+        <input type="text" id="cvIn" placeholder="2026-08-17 12:25:43" autocomplete="off" spellcheck="false">
+        <button id="cvNow">此刻</button>
+      </div>
+      <p class="err" id="cvErr"></p>
+
+      <label class="fl" for="cvFrom" style="margin-top:15px">从</label>
+      <select id="cvFrom"></select>
+      <div class="arrow"><button id="cvSwap" title="对调源时区与目标时区" aria-label="对调源时区与目标时区">⇄ 对调</button></div>
+      <label class="fl" for="cvTo">到</label>
+      <select id="cvTo"></select>
+      <p class="hint tzhint">下拉框只列<b>已收藏</b>的时区 · <a href="#zonelist">去清单加 ☆</a></p>
+
+      <div class="out">
+        <div class="outrow"><span class="k">目标读数</span><span class="v big mono" id="cvOutDt">—</span><button class="cp" data-copy="cvOutDt">复制</button></div>
+        <div class="outrow"><span class="k">两地偏移</span><span class="v mono" id="cvOutOff">—</span></div>
+        <div class="outrow"><span class="k">时差</span><span class="v" id="cvOutDiff">—</span></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="boardhead" id="zonelist">
+  <h2>时区清单</h2>
+  <span class="seg" role="group" aria-label="清单范围">
+    <button id="bCommon" aria-pressed="true">收藏</button>
+    <button id="bAll" aria-pressed="false">全部时区</button>
+  </span>
+  <span class="note" id="boardNote"></span>
+  <div class="filter"><input type="text" id="zFilter" placeholder="搜城市、时区 ID 或 utc-8" autocomplete="off"></div>
+</div>
+
+<div class="tablewrap">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:48px"></th>
+        <th style="width:30%">时区</th>
+        <th style="width:18%">UTC 偏移</th>
+        <th style="width:26%">夏令时</th>
+        <th style="width:20%">当前时间</th>
+      </tr>
+    </thead>
+    <tbody id="board"></tbody>
+  </table>
+</div>
+
+<section class="note-panel">
+  <h2>为什么「固定偏移」和「命名时区」会差一小时</h2>
+  <p><strong>命名时区</strong>（如 <span class="mono">America/New_York</span>）由时区数据库维护，自动跟随夏令时：3 月中到 11 月初是 EDT（UTC−4），其余时间是 EST（UTC−5）。<strong>固定偏移</strong>（如 <span class="mono">Etc/GMT+5</span>，即 UTC−5）全年不变。</p>
+  <p>两者冬季一致，夏季差 1 小时。用固定偏移做日报表，夏令时期间的「一天」实际是当地 01:00 到次日 01:00，跨月归属会错。</p>
+  <p>清单里 <strong>UTC−12 到 UTC+12</strong> 那 25 个固定偏移时区，用于只知道偏移、不确定具体城市的场合。注意 IANA 的 <span class="mono">Etc/GMT</span> 符号是反的——<span class="mono">Etc/GMT+8</span> 表示 UTC−08:00，所以这里统一按「固定 UTC±HH:00」显示。</p>
+  <div class="cmp" id="cmp"></div>
+</section>
+
+<footer>
+  <span>时区数据来自浏览器内置的 IANA 时区库，随系统更新。</span>
+  <span>收藏保存在本机浏览器，换设备不同步。</span>
+  <span>输入即转换，不用按 <kbd>Enter</kbd></span>
+</footer>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   1. 时区数据
+   ─────────────────────────────────────────────────────────────────
+   ALL_TZ  浏览器内置的 IANA 全量清单，再补上 UTC−12 ~ UTC+12 固定偏移
+   CN      常见时区的中文名，查不到就退回 ID 里的城市名
+   FAV     用户收藏，存 localStorage。首次访问预置北京时间与 UTC。
+           三个面板的下拉框「只」列收藏项，避免几百项难选。
+   ═══════════════════════════════════════════════════════════════ */
+const CN={
+ 'Asia/Shanghai':'北京 / 上海','Asia/Hong_Kong':'香港','Asia/Macau':'澳门','Asia/Taipei':'台北',
+ 'Asia/Tokyo':'东京','Asia/Seoul':'首尔','Asia/Singapore':'新加坡','Asia/Bangkok':'曼谷',
+ 'Asia/Jakarta':'雅加达','Asia/Manila':'马尼拉','Asia/Kuala_Lumpur':'吉隆坡','Asia/Ho_Chi_Minh':'胡志明市',
+ 'Asia/Kolkata':'新德里 / 孟买','Asia/Karachi':'卡拉奇','Asia/Dubai':'迪拜','Asia/Riyadh':'利雅得',
+ 'Asia/Tehran':'德黑兰','Asia/Jerusalem':'耶路撒冷','Asia/Almaty':'阿拉木图','Asia/Tashkent':'塔什干',
+ 'Australia/Sydney':'悉尼','Australia/Melbourne':'墨尔本','Australia/Brisbane':'布里斯班',
+ 'Australia/Perth':'珀斯','Australia/Adelaide':'阿德莱德','Pacific/Auckland':'奥克兰','Pacific/Fiji':'斐济',
+ 'America/New_York':'纽约（美东）','America/Chicago':'芝加哥（美中）','America/Denver':'丹佛（美山）',
+ 'America/Phoenix':'凤凰城（不实行夏令时）','America/Los_Angeles':'洛杉矶（美西）',
+ 'America/Anchorage':'安克雷奇','Pacific/Honolulu':'檀香山','America/Toronto':'多伦多',
+ 'America/Vancouver':'温哥华','America/Mexico_City':'墨西哥城','America/Bogota':'波哥大',
+ 'America/Lima':'利马','America/Sao_Paulo':'圣保罗','America/Argentina/Buenos_Aires':'布宜诺斯艾利斯',
+ 'America/Santiago':'圣地亚哥',
+ 'Europe/London':'伦敦','Europe/Dublin':'都柏林','Europe/Paris':'巴黎','Europe/Berlin':'柏林',
+ 'Europe/Madrid':'马德里','Europe/Rome':'罗马','Europe/Amsterdam':'阿姆斯特丹','Europe/Zurich':'苏黎世',
+ 'Europe/Stockholm':'斯德哥尔摩','Europe/Warsaw':'华沙','Europe/Kyiv':'基辅','Europe/Moscow':'莫斯科',
+ 'Europe/Istanbul':'伊斯坦布尔','Europe/Lisbon':'里斯本','Europe/Athens':'雅典',
+ 'Africa/Cairo':'开罗','Africa/Lagos':'拉各斯','Africa/Nairobi':'内罗毕',
+ 'Africa/Johannesburg':'约翰内斯堡','Africa/Casablanca':'卡萨布兰卡','Africa/Accra':'阿克拉'
+};
+
+/* 固定偏移时区 UTC−12 ~ UTC+12。
+   注意 IANA 的 Etc/GMT 符号是反的：Etc/GMT+8 表示 UTC−08:00。
+   这里统一用「固定 UTC±HH:00」当显示名，避免踩这个坑。 */
+const FIXED_TZ=[];
+for(let h=-12;h<=12;h++){
+  const id = h===0 ? 'UTC' : 'Etc/GMT'+(h>0?'-':'+')+Math.abs(h);
+  FIXED_TZ.push(id);
+  CN[id] = h===0 ? '协调世界时 UTC±00:00'
+                 : '固定 UTC'+(h<0?'−':'+')+String(Math.abs(h)).padStart(2,'0')+':00';
+}
+
+/* 老浏览器没有 Intl.supportedValuesOf 时的兜底清单 */
+const FALLBACK_TZ=['UTC','Asia/Shanghai','Asia/Hong_Kong','Asia/Taipei','Asia/Tokyo','Asia/Seoul',
+ 'Asia/Singapore','Asia/Bangkok','Asia/Kolkata','Asia/Dubai','Australia/Sydney','Pacific/Auckland',
+ 'America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Anchorage',
+ 'Pacific/Honolulu','America/Sao_Paulo','America/Mexico_City','America/Toronto','Europe/London',
+ 'Europe/Paris','Europe/Berlin','Europe/Moscow','Europe/Istanbul','Africa/Cairo','Africa/Lagos',
+ 'Africa/Johannesburg'];
+
+let ALL_TZ=[];
+try{ ALL_TZ=Intl.supportedValuesOf('timeZone').slice(); }catch(e){ ALL_TZ=[]; }
+if(!ALL_TZ.length) ALL_TZ=FALLBACK_TZ.slice();
+for(const z of FIXED_TZ) if(ALL_TZ.indexOf(z)<0) ALL_TZ.push(z);
+ALL_TZ.sort();
+
+const FAV_KEY='ts.favorites';
+const FAV_SEED=['Asia/Shanghai','UTC'];   /* 首次打开时的默认收藏 */
+let FAV=[];
+try{
+  const raw=localStorage.getItem(FAV_KEY);
+  if(raw===null){
+    /* 第一次访问：给两个最收藏的垫底，省得面对空列表无从下手。
+       要区分「从没存过」和「存过但被清空了」，后者尊重用户的选择。 */
+    FAV=FAV_SEED.filter(function(z){ return ALL_TZ.indexOf(z)>=0 });
+  }else{
+    const r=JSON.parse(raw);
+    if(Array.isArray(r)) FAV=r.filter(function(x){ return typeof x==='string'&&ALL_TZ.indexOf(x)>=0 });
+  }
+}catch(e){ FAV=FAV_SEED.slice(); }
+function saveFav(){ try{ localStorage.setItem(FAV_KEY,JSON.stringify(FAV)); }catch(e){} }
+function isFav(id){ return FAV.indexOf(id)>=0 }
+function zName(id){ return CN[id] || id.split('/').pop().replace(/_/g,' ') }
+
+/* ═══════════════════════════════════════════════════════════════════
+   2. 时区计算
+   ─────────────────────────────────────────────────────────────────
+   全部基于 Intl，不引外部库。核心三件事：
+   offsetOf      某瞬间在某时区的 UTC 偏移（分钟，东为正）
+   stdOffsetOf   该时区的标准时偏移，取 1 月与 7 月的较小值，南北半球通用
+   zonedToTs     把「某时区的墙钟读数」还原成绝对瞬间，两轮修正保证跨 DST 边界也准
+   三个 Intl 实例都按时区缓存，全量渲染 440 行才不会卡。
+   ═══════════════════════════════════════════════════════════════ */
+const _fmt={};
+function parts(ts,tz){
+  if(!_fmt[tz]) _fmt[tz]=new Intl.DateTimeFormat('en-US',{timeZone:tz,hour12:false,
+    year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const o={};
+  for(const p of _fmt[tz].formatToParts(new Date(ts))) if(p.type!=='literal') o[p.type]=p.value;
+  if(o.hour==='24') o.hour='00';          /* 部分环境把 0 点输出成 24 */
+  return o;
+}
+const _off={}; let _offN=0;
+function offsetOf(ts,tz){
+  /* 按分钟缓存，避免半小时夏令时切换被整点缓存吞掉。 */
+  const k=tz+'|'+Math.floor(ts/60000);
+  if(_off[k]!==undefined) return _off[k];
+  if(_offN>20000){ for(const kk in _off) delete _off[kk]; _offN=0; }
+  _offN++;
+  const p=parts(ts,tz);
+  return _off[k]=Math.round((utcMs(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second)
+                     -Math.floor(ts/1000)*1000)/60000);
+}
+const _std={};
+function stdOffsetOf(ts,tz){
+  const y=+parts(ts,tz).year, k=tz+'|'+y;
+  if(_std[k]) return _std[k];
+  const a=offsetOf(utcMs(y,0,1),tz), b=offsetOf(utcMs(y,6,1),tz);
+  return _std[k]={std:Math.min(a,b), hasDst:a!==b};
+}
+const _abbrFmt={};
+function abbrOf(ts,tz){
+  try{
+    if(!_abbrFmt[tz]) _abbrFmt[tz]=new Intl.DateTimeFormat('en-US',{timeZone:tz,timeZoneName:'short'});
+    const p=_abbrFmt[tz].formatToParts(new Date(ts)).find(function(x){ return x.type==='timeZoneName' });
+    /* 只保留 EDT、JST 这类有信息量的，隐藏 GMT+8 / -08 这种纯偏移写法 */
+    return p&&!/^(GMT|UTC)?[+-]?\d{1,2}(:?\d{2})?$/.test(p.value)?p.value:'';
+  }catch(e){ return '' }
+}
+function offStr(m){
+  const s=m<0?'−':'+', a=Math.abs(m);
+  return 'UTC'+s+String(Math.floor(a/60)).padStart(2,'0')+':'+String(a%60).padStart(2,'0');
+}
+function fmtDT(ts,tz,ms){
+  const p=parts(ts,tz);
+  let s=p.year+'-'+p.month+'-'+p.day+' '+p.hour+':'+p.minute+':'+p.second;
+  if(ms) s+='.'+String(((ts%1000)+1000)%1000).padStart(3,'0');
+  return s;
+}
+function utcMs(y,mo,d,h,mi,se,msec){
+  const date=new Date(0);
+  date.setUTCFullYear(y,mo,d);
+  date.setUTCHours(h||0,mi||0,se||0,msec||0);
+  return date.getTime();
+}
+function zonedToTs(y,mo,d,h,mi,se,msec,tz){
+  const wall=utcMs(y,mo-1,d,h,mi,se,msec);
+  let ts=wall;
+  for(let i=0;i<2;i++) ts=wall-offsetOf(ts,tz)*60000;
+  return ts;
+}
+/* 偏移已知时直接算墙钟，供清单每秒刷新用，省掉几百次 Intl 调用 */
+function clockAt(nowMs,offMin){
+  const d=new Date(nowMs+offMin*60000), p=function(n){ return String(n).padStart(2,'0') };
+  return {t:p(d.getUTCHours())+':'+p(d.getUTCMinutes())+':'+p(d.getUTCSeconds()),
+          d:p(d.getUTCMonth()+1)+'-'+p(d.getUTCDate())};
+}
+
+/* 搜索索引：ID、中文名、以及补零与不补零两种偏移写法都收进去，
+   并把 Unicode 减号 − 归一成 ASCII -，这样 utc-8 / -08 / gmt+8 / 上海 都能命中。 */
+const SEARCH={};
+function norm(x){ return x.toLowerCase().replace(/[−–—]/g,'-').replace(/\s+/g,'') }
+function escapeHtml(x){
+  return String(x).replace(/[&<>"']/g,function(ch){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
+  });
+}
+function buildSearchIndex(){
+  const now=Date.now();
+  for(let i=0;i<ALL_TZ.length;i++){
+    const id=ALL_TZ[i], off=offsetOf(now,id);
+    const sg=off<0?'-':'+', a=Math.abs(off), hh=Math.floor(a/60), mm=a%60;
+    const h1=String(hh), h2=String(hh).padStart(2,'0'), m2=String(mm).padStart(2,'0');
+    SEARCH[id]=norm([id, zName(id),
+      'utc'+sg+h1, 'utc'+sg+h2+':'+m2, 'gmt'+sg+h1, sg+h1, sg+h2].join(' '));
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   3. 状态
+   ─────────────────────────────────────────────────────────────────
+   三个面板各自独立：P[1] / P[2] / P[3] 各持有自己的瞬间。
+   在 01 里改时间戳，02 和 03 纹丝不动；反之亦然。
+   每个面板的瞬间只由两件事改变：在它自己的输入框里打字，或点它自己的「此刻」。
+   时区下拉框只换显示方式，绝不改瞬间 —— 否则选个时区上面的时间戳就会跳。
+   顶部实时条与清单时钟独立走秒，不回写面板，避免输入时被覆盖。
+   ═══════════════════════════════════════════════════════════════ */
+const P={
+  1:{ms:Date.now(), hasMs:false},   /* 01 时间戳 → 日期时间 */
+  2:{ms:Date.now(), hasMs:false},   /* 02 日期时间 → 时间戳 */
+  3:{ms:Date.now(), hasMs:false}    /* 03 日期时间 → 日期时间 */
+};
+let tsUnit='auto';    /* 01 的时间戳单位：auto / s / ms */
+let showAll=false;    /* 清单看收藏还是看全部 */
+
+const $=function(id){ return document.getElementById(id) };
+
+/* ═══════════════════════════════════════════════════════════════════
+   4. 下拉框：只列收藏项，按 UTC 偏移从西到东排序
+   收藏被清空时退回「本机时区 + UTC」，保证下拉框永远不为空
+   ═══════════════════════════════════════════════════════════════ */
+const localTz=(function(){ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC' }
+                           catch(e){ return 'UTC' } })();
+function byOffset(list){
+  const now=Date.now();
+  return list.slice().sort(function(a,b){
+    const d=offsetOf(now,a)-offsetOf(now,b);
+    return d!==0?d:zName(a).localeCompare(zName(b),'zh');
+  });
+}
+function selZones(){
+  if(FAV.length) return byOffset(FAV);
+  const seed=[];
+  if(ALL_TZ.indexOf(localTz)>=0) seed.push(localTz);
+  if(seed.indexOf('UTC')<0) seed.push('UTC');
+  return byOffset(seed);
+}
+function fillSelect(sel,keep){
+  const list=selZones(), now=Date.now();
+  sel.innerHTML=list.map(function(id){
+    return '<option value="'+id+'">'+offStr(offsetOf(now,id))+'　'+zName(id)+'</option>' }).join('');
+  sel.value=list.indexOf(keep)>=0?keep:list[0];
+}
+function fillAllSelects(){
+  fillSelect($('tsZone'),$('tsZone').value||localTz);
+  fillSelect($('dtZone'),$('dtZone').value||localTz);
+  fillSelect($('cvFrom'),$('cvFrom').value||localTz);
+  fillSelect($('cvTo'),  $('cvTo').value||'UTC');
+}
+buildSearchIndex();
+fillAllSelects();
+
+/* ═══════════════════════════════════════════════════════════════════
+   5. 渲染，每个面板只读自己的状态
+   ═══════════════════════════════════════════════════════════════ */
+function renderP1(){
+  const st=P[1], tz=$('tsZone').value;
+  $('tsOutDt').textContent=fmtDT(st.ms,tz,st.hasMs);
+  const off=offsetOf(st.ms,tz), sign=off<0?'-':'+', ab=Math.abs(off);
+  const isoOff=tz==='UTC'?'Z':sign+String(Math.floor(ab/60)).padStart(2,'0')+':'+String(ab%60).padStart(2,'0');
+  $('tsOutIso').textContent=fmtDT(st.ms,tz,true).replace(' ','T')+isoOff;
+  $('tsOutUtc').textContent=fmtDT(st.ms,'UTC',st.hasMs);
+}
+function renderP2(){
+  const st=P[2], tz=$('dtZone').value;
+  $('dtOutS').textContent=String(Math.floor(st.ms/1000));
+  $('dtOutMs').textContent=String(st.ms);
+  const o=offsetOf(st.ms,tz), sd=stdOffsetOf(st.ms,tz);
+  $('dtOutOff').textContent=offStr(o)+(sd.hasDst?(o>sd.std?' 夏令时':' 标准时'):' 全年固定');
+}
+function renderP3(){
+  const st=P[3], from=$('cvFrom').value, to=$('cvTo').value;
+  $('cvOutDt').textContent=fmtDT(st.ms,to,st.hasMs);
+  const o1=offsetOf(st.ms,from), o2=offsetOf(st.ms,to);
+  $('cvOutOff').textContent=offStr(o1)+' → '+offStr(o2);
+  const d=(o2-o1)/60, ad=Math.abs(d);
+  $('cvOutDiff').textContent = d===0 ? '同一时刻，读数相同'
+    : (d>0?'目标快 ':'目标慢 ')+(ad%1?ad.toFixed(1):ad)+' 小时';
+}
+function renderBoard(){
+  const q=$('zFilter').value.trim();
+  let list;
+  if(q){ const nq=norm(q); list=ALL_TZ.filter(function(id){ return SEARCH[id].indexOf(nq)>=0 }); }
+  else if(showAll) list=ALL_TZ;
+  else list=byOffset(FAV);        /* 收藏按 UTC 偏移排，看起来像一条时区带 */
+  const now=Date.now();
+  const rows=list.map(function(id){
+    const off=offsetOf(now,id), sd=stdOffsetOf(now,id);
+    const dst=sd.hasDst&&off>sd.std, ab=abbrOf(now,id), c=clockAt(now,off);
+    let lamp;
+    if(!sd.hasDst) lamp='<span class="lamp none"><i></i>不实行</span>';
+    else if(dst)   lamp='<span class="lamp on"><i></i>夏令时</span><span class="shift">标准时 '+offStr(sd.std)+'</span>';
+    else           lamp='<span class="lamp off"><i></i>标准时</span><span class="shift">夏令时 '+offStr(sd.std+60)+'</span>';
+    const nm=zName(id), fav=isFav(id);
+    return '<tr class="'+(fav?'fav':'')+'">'
+      +'<td><button class="star'+(fav?' on':'')+'" data-tz="'+id+'" title="'+(fav?'取消收藏':'加入收藏')+'" aria-label="'+(fav?'取消收藏':'加入收藏')+'">'+(fav?'★':'☆')+'</button></td>'
+      +'<td><div class="zname">'+nm+'</div>'+(nm===id?'':'<div class="zid">'+id+'</div>')+'</td>'
+      +'<td><span class="off mono">'+offStr(off)+'</span>'+(ab?'<span class="abbr">'+ab+'</span>':'')+'</td>'
+      +'<td>'+lamp+'</td>'
+      +'<td><div class="clock mono" data-off="'+off+'">'+c.t+'</div><div class="cdate mono">'+c.d+'</div></td>'
+      +'</tr>';
+  }).join('');
+  let fb;
+  if(q) fb='<tr><td colspan="5" class="empty"><b>没有匹配「'+escapeHtml(q)+'」的时区</b><span>换个关键词试试，支持城市名、时区 ID，或直接搜偏移，例如 utc-8、+09</span></td></tr>';
+  else if(!showAll&&!FAV.length) fb='<tr><td colspan="5" class="empty"><b>收藏夹是空的</b><span>切到「全部时区」，点每行左边的 ☆ 收藏。收藏的时区会同时出现在上方三个下拉框里。</span></td></tr>';
+  else fb='<tr><td colspan="5" class="empty"><b>没有可显示的时区</b></td></tr>';
+  $('board').innerHTML=rows||fb;
+  $('boardNote').textContent=list.length
+    ? list.length+' 个时区'+(showAll||q?'':'，按 UTC 偏移排序') : '';
+  $('bCommon').textContent=FAV.length?'收藏 '+FAV.length:'收藏';
+}
+function renderCmp(){
+  const ms=P[1].ms, a='America/New_York', b='Etc/GMT+5';
+  const oa=offsetOf(ms,a), ob=offsetOf(ms,b), sa=stdOffsetOf(ms,a);
+  const dst=sa.hasDst&&oa>sa.std;
+  $('cmp').innerHTML=
+   '<div><div class="t">America/New_York · 命名时区</div>'
+  +'<div class="b mono">'+fmtDT(ms,a,false)+'</div>'
+  +'<div class="c">'+offStr(oa)+' · '+(dst?'当前为夏令时 EDT':'当前为标准时 EST')+'</div></div>'
+  +'<div><div class="t">Etc/GMT+5 · 固定 UTC−05:00</div>'
+  +'<div class="b mono">'+fmtDT(ms,b,false)+'</div>'
+  +'<div class="c">'+offStr(ob)+' · 全年不变'
+  +(oa!==ob?' · 与左侧差 '+Math.abs(oa-ob)/60+' 小时':' · 与左侧一致')+'</div></div>';
+}
+function renderPanels(){ renderP1(); renderP2(); renderP3(); renderCmp(); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   6. 输入处理，每个面板只写自己的状态
+   ═══════════════════════════════════════════════════════════════ */
+function setPanelNow(n){
+  P[n].ms=Date.now(); P[n].hasMs=false;
+  if(n===1){
+             const value=tsUnit==='ms'?String(P[1].ms):String(Math.floor(P[1].ms/1000));
+             P[1].hasMs=tsUnit==='ms';
+             $('tsIn').value=value; $('tsErr').textContent='';
+             $('tsDetect').textContent=tsUnit==='ms'?'毫秒 · 13 位':'秒 · 10 位'; $('tsDetect').className='badge hit';
+             renderP1(); renderCmp(); }
+  if(n===2){ $('dtIn').value=fmtDT(P[2].ms,$('dtZone').value,false); $('dtErr').textContent=''; renderP2(); }
+  if(n===3){ $('cvIn').value=fmtDT(P[3].ms,$('cvFrom').value,false); $('cvErr').textContent=''; renderP3(); }
+}
+
+/* —— 01 时间戳输入 —— */
+function applyTs(){
+  const raw=$('tsIn').value.trim(), badge=$('tsDetect');
+  if(!raw){ $('tsErr').textContent=''; badge.textContent='等待输入'; badge.className='badge'; return }
+  if(!/^-?\d+(\.\d+)?$/.test(raw)){
+    $('tsErr').textContent='只能填数字，可带小数秒。'; badge.textContent='无法解析'; badge.className='badge'; return }
+  const n=raw.replace('-','').split('.')[0].length;
+  let ms,label;
+  if(tsUnit==='s'){ ms=Math.round(parseFloat(raw)*1000);      label='按秒 · '+n+' 位'; }
+  else if(tsUnit==='ms'){ ms=Math.round(parseFloat(raw));     label='按毫秒 · '+n+' 位'; }
+  else if(raw.indexOf('.')>=0){ ms=Math.round(parseFloat(raw)*1000); label='小数秒'; }
+  else if(n<=11){ ms=parseInt(raw,10)*1000;                   label='秒 · '+n+' 位'; }
+  else if(n<=14){ ms=parseInt(raw,10);                        label='毫秒 · '+n+' 位'; }
+  else if(n<=17){ ms=Math.round(parseInt(raw,10)/1000);       label='微秒 · '+n+' 位'; }
+  else          { ms=Math.round(parseInt(raw,10)/1e6);        label='纳秒 · '+n+' 位'; }
+  if(!isFinite(ms)||Math.abs(ms)>8.64e15){
+    $('tsErr').textContent='超出可表示的日期范围。'; badge.textContent='超出范围'; badge.className='badge'; return }
+  badge.textContent=(tsUnit==='auto'?'识别为 ':'指定为 ')+label;
+  badge.className='badge hit';
+  $('tsErr').textContent='';
+  P[1].ms=ms;
+  P[1].hasMs=(tsUnit==='ms')||raw.indexOf('.')>=0||(tsUnit==='auto'&&n>11);
+  renderP1(); renderCmp();
+}
+
+/* —— 日期时间输入，02 与 03 共用同一套解析，只写各自的状态 —— */
+function parseDateInto(n,inputId,zoneId,errId,after){
+  const raw=$(inputId).value.trim(), err=$(errId);
+  if(!raw){ err.textContent=''; return }
+  const m=raw.replace(/\//g,'-')
+    .match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T]+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?(?:\.(\d{1,3}))?)?$/);
+  if(!m){ err.textContent='认不出这个格式，试试 2026-08-17 12:25:43。'; return }
+  const Y=+m[1],MO=+m[2],D=+m[3],H=+(m[4]||0),MI=+(m[5]||0),S=+(m[6]||0);
+  const f=m[7], MS=+((f||'').padEnd(3,'0'));
+  if(Y<1||Y>9999||MO<1||MO>12||D<1||D>31||H>23||MI>59||S>59){ err.textContent='日期或时间超出范围。'; return }
+  /* 先判日期本身是否存在，2026-02-31 这种要和夏令时空洞分开报 */
+  const probe=new Date(0); probe.setUTCFullYear(Y,MO-1,D); probe.setUTCHours(0,0,0,0);
+  if(probe.getUTCMonth()!==MO-1||probe.getUTCDate()!==D){
+    err.textContent=Y+' 年 '+MO+' 月没有 '+D+' 号。'; return;
+  }
+  const tz=$(zoneId).value, ts=zonedToTs(Y,MO,D,H,MI,S,MS,tz), back=parts(ts,tz);
+  err.textContent=(+back.year!==Y||+back.month!==MO||+back.hour!==H||+back.day!==D||+back.minute!==MI||+back.second!==S)
+    ? '这个时刻在该时区不存在（夏令时向前拨走的那一小时），已取最接近的有效时刻。' : '';
+  P[n].ms=ts; P[n].hasMs=!!f;
+  after();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   7. 事件绑定
+   ═══════════════════════════════════════════════════════════════ */
+/* —— 01 —— */
+$('tsIn').addEventListener('input',applyTs);
+$('tsNow').addEventListener('click',function(){ setPanelNow(1) });
+$('tsZone').addEventListener('change',function(){ renderP1() });
+[['uAuto','auto'],['uS','s'],['uMs','ms']].forEach(function(p){
+  $(p[0]).addEventListener('click',function(){
+    tsUnit=p[1];
+    ['uAuto','uS','uMs'].forEach(function(x){ $(x).setAttribute('aria-pressed',String(x===p[0])) });
+    applyTs();
+  });
+});
+
+/* —— 02 —— */
+$('dtIn').addEventListener('input',function(){ parseDateInto(2,'dtIn','dtZone','dtErr',renderP2) });
+$('dtNow').addEventListener('click',function(){ setPanelNow(2) });
+/* 换时区只重新显示同一瞬间，不改 P[2].ms，否则时间戳会跟着跳 */
+$('dtZone').addEventListener('change',function(){
+  $('dtIn').value=fmtDT(P[2].ms,$('dtZone').value,P[2].hasMs);
+  $('dtErr').textContent=''; renderP2();
+});
+
+/* —— 03 —— */
+$('cvIn').addEventListener('input',function(){ parseDateInto(3,'cvIn','cvFrom','cvErr',renderP3) });
+$('cvNow').addEventListener('click',function(){ setPanelNow(3) });
+$('cvFrom').addEventListener('change',function(){
+  $('cvIn').value=fmtDT(P[3].ms,$('cvFrom').value,P[3].hasMs);
+  $('cvErr').textContent=''; renderP3();
+});
+$('cvTo').addEventListener('change',renderP3);
+$('cvSwap').addEventListener('click',function(){
+  const a=$('cvFrom').value;
+  $('cvFrom').value=$('cvTo').value; $('cvTo').value=a;
+  $('cvIn').value=fmtDT(P[3].ms,$('cvFrom').value,P[3].hasMs);
+  renderP3();
+});
+
+/* —— 全局 —— */
+$('useNow').addEventListener('click',function(){ setPanelNow(1); setPanelNow(2); setPanelNow(3) });
+$('zFilter').addEventListener('input',renderBoard);
+$('bCommon').addEventListener('click',function(){
+  showAll=false;
+  $('bCommon').setAttribute('aria-pressed','true'); $('bAll').setAttribute('aria-pressed','false');
+  renderBoard();
+});
+$('bAll').addEventListener('click',function(){
+  showAll=true;
+  $('bAll').setAttribute('aria-pressed','true'); $('bCommon').setAttribute('aria-pressed','false');
+  renderBoard();
+});
+
+/* 收藏用事件委托：行是整段 innerHTML 重绘的，逐行绑定会失效 */
+function toggleFav(id){
+  const i=FAV.indexOf(id);
+  if(i>=0) FAV.splice(i,1); else FAV.push(id);
+  saveFav();
+  fillAllSelects();
+  renderPanels();   /* 下拉框可能换了选中项，重新渲染显示；三个瞬间都不变 */
+  renderBoard();
+}
+$('board').addEventListener('click',function(e){
+  let n=e.target;
+  for(let i=0;n&&i<4;i++){
+    if(n.dataset&&n.dataset.tz){ toggleFav(n.dataset.tz); return }
+    n=n.parentNode;
+  }
+});
+
+/* 复制按钮，clipboard 不可用时退回 execCommand */
+document.querySelectorAll('.cp').forEach(function(b){
+  b.addEventListener('click',function(){
+    const t=$(b.dataset.copy).textContent;
+    const done=function(){
+      const o=b.textContent; b.textContent='已复制'; setTimeout(function(){ b.textContent=o },1100);
+    };
+    try{ navigator.clipboard.writeText(t).then(done,done); }
+    catch(e){
+      const ta=document.createElement('textarea'); ta.value=t;
+      document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy') }catch(_){}
+      ta.remove(); done();
+    }
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   8. 每秒心跳
+   只驱动顶部实时条和清单的「当前时间」，绝不回写三个面板。
+   清单不整行重绘，只改文字，避免打断滚动和悬停。
+   ═══════════════════════════════════════════════════════════════ */
+function tick(){
+  const now=Date.now();
+  $('nowS').textContent=Math.floor(now/1000);
+  $('nowMs').textContent=now;
+  $('nowBJ').textContent=fmtDT(now,'Asia/Shanghai',false).slice(5);
+  const cells=document.querySelectorAll('#board .clock');
+  for(let i=0;i<cells.length;i++)
+    cells[i].textContent=clockAt(now,+cells[i].dataset.off).t;
+}
+
+/* 载入：三个面板各自取「此刻」，之后互不干扰 */
+setPanelNow(1); setPanelNow(2); setPanelNow(3);
+renderBoard();
+tick();
+setInterval(tick,1000);
+</script>
