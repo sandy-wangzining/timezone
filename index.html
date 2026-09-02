@@ -371,6 +371,28 @@ footer{margin-top:40px;font-size:12px}
   .zone-explain{grid-template-columns:1fr}
   .explain-card p{min-height:0}
 }
+
+/* 宽屏布局：固定三列和标题行，避免面板内容因可用宽度变化而折行。 */
+@media (min-width:1200px){
+  header{display:grid;grid-template-columns:minmax(360px,1fr) auto;align-items:start}
+  .nowbar{min-width:620px}
+  .grid3{grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch}
+  .phead{flex-wrap:nowrap}
+  .phead h2{white-space:nowrap}
+  .pbody{min-width:0}
+  .row input{min-width:0}
+}
+@media (min-width:900px) and (max-width:1199px){
+  .grid3{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .phead h2{white-space:nowrap}
+}
+.phead h2,.phead .dir{overflow:hidden;text-overflow:ellipsis}
+.phead .dir{white-space:nowrap;flex:none}
+.row{min-width:0}
+.row input{min-width:0}
+.outrow{min-width:0}
+.outrow .v{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.filter input{min-width:0}
 </style>
 
 <div class="wrap">
