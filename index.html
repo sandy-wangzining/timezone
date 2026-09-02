@@ -232,6 +232,32 @@ tbody tr.fav{background:linear-gradient(90deg,var(--dst-soft) 0,transparent 44%)
 .cmp .b{font-size:15.5px;font-weight:600;letter-spacing:-.015em}
 .cmp .c{font-size:12.5px;color:var(--ink-2);margin-top:5px;line-height:1.55}
 
+.zone-control{display:flex;align-items:stretch;position:relative}
+.zone-prefix{display:flex;align-items:center;padding:0 10px;border:1px solid var(--line);border-right:0;border-radius:6px 0 0 6px;background:var(--panel-2);color:var(--accent);font:600 10px "IBM Plex Mono",monospace;letter-spacing:.08em}
+.zone-control select{border-radius:0 6px 6px 0;flex:1;min-width:0}
+.zone-control:focus-within .zone-prefix{border-color:var(--accent);background:var(--accent-soft)}
+.note-kicker{font:600 10px "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.note-lead{font-size:15px!important;color:var(--ink-2);max-width:68ch!important;margin-bottom:20px!important}
+.zone-explain{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:18px 0 20px}
+.explain-card{border:1px solid var(--line);border-radius:7px;padding:19px 19px 16px;background:var(--panel-2)}
+.explain-card.named-zone{border-top:3px solid var(--accent)}
+.explain-card.fixed-zone{border-top:3px solid var(--std)}
+.explain-label{display:flex;align-items:center;gap:8px;color:var(--ink-2);font-size:12px;font-weight:600}
+.explain-dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.fixed-zone .explain-dot{background:var(--std)}
+.explain-id{font-size:17px;font-weight:600;margin:11px 0 7px;color:var(--ink)}
+.explain-card p{font-size:13px!important;line-height:1.6!important;margin-bottom:14px!important;min-height:42px}
+.rule-line{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;border-top:1px solid var(--line-2);padding:9px 0 0;margin-top:8px;font-size:12px;color:var(--ink-2)}
+.rule-line strong{font:600 13px "IBM Plex Mono",monospace;color:var(--ink)}
+.rule-line em{font-style:normal;font:500 10px "IBM Plex Mono",monospace;color:var(--ink-3)}
+.rule-line.active strong{color:var(--accent)}
+.rule-line.muted{color:var(--ink-3)}
+.timeline-note{display:flex;align-items:flex-start;gap:13px;border:1px solid var(--line-2);border-radius:6px;padding:13px 15px;background:#fbfcfd;color:var(--ink-2)}
+.timeline-line{width:3px;align-self:stretch;min-height:34px;border-radius:2px;background:var(--dst)}
+.timeline-note strong{display:block;color:var(--dst);font-size:12px;margin-bottom:2px}
+.timeline-note span:not(.timeline-line){display:block;font-size:12.5px;line-height:1.55}
+.note-foot{font-size:12.5px!important;line-height:1.65!important;margin:17px 0 4px!important;color:var(--ink-3)!important}
+
 footer{margin-top:36px;color:var(--ink-3);font-size:12.5px;
   display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center}
 kbd{font-family:"IBM Plex Mono",monospace;font-size:11.5px;border:1px solid var(--line);
@@ -342,6 +368,8 @@ footer{margin-top:40px;font-size:12px}
   .boardhead{align-items:flex-start}
   .filter{order:5;flex-basis:100%;max-width:none}
   .note-panel{padding:22px 18px}
+  .zone-explain{grid-template-columns:1fr}
+  .explain-card p{min-height:0}
 }
 </style>
 
@@ -383,7 +411,7 @@ footer{margin-top:40px;font-size:12px}
       <p class="err" id="tsErr"></p>
 
       <label class="fl" for="tsZone" style="margin-top:15px">显示时区</label>
-      <select id="tsZone"></select>
+      <div class="zone-control"><span class="zone-prefix">TZ</span><select id="tsZone"></select></div>
       <p class="hint tzhint">下拉框只列<b>已收藏</b>的时区 · <a href="#zonelist">去清单加 ☆</a></p>
 
       <div class="out">
@@ -407,7 +435,7 @@ footer{margin-top:40px;font-size:12px}
       <p class="err" id="dtErr"></p>
 
       <label class="fl" for="dtZone" style="margin-top:15px">这个读数属于哪个时区</label>
-      <select id="dtZone"></select>
+      <div class="zone-control"><span class="zone-prefix">TZ</span><select id="dtZone"></select></div>
       <p class="hint tzhint">下拉框只列<b>已收藏</b>的时区 · <a href="#zonelist">去清单加 ☆</a></p>
 
       <div class="out">
@@ -430,10 +458,10 @@ footer{margin-top:40px;font-size:12px}
       <p class="err" id="cvErr"></p>
 
       <label class="fl" for="cvFrom" style="margin-top:15px">从</label>
-      <select id="cvFrom"></select>
+      <div class="zone-control"><span class="zone-prefix">TZ</span><select id="cvFrom"></select></div>
       <div class="arrow"><button id="cvSwap" title="对调源时区与目标时区" aria-label="对调源时区与目标时区">⇄ 对调</button></div>
       <label class="fl" for="cvTo">到</label>
-      <select id="cvTo"></select>
+      <div class="zone-control"><span class="zone-prefix">TZ</span><select id="cvTo"></select></div>
       <p class="hint tzhint">下拉框只列<b>已收藏</b>的时区 · <a href="#zonelist">去清单加 ☆</a></p>
 
       <div class="out">
@@ -472,10 +500,30 @@ footer{margin-top:40px;font-size:12px}
 </div>
 
 <section class="note-panel">
-  <h2>为什么「固定偏移」和「命名时区」会差一小时</h2>
-  <p><strong>命名时区</strong>（如 <span class="mono">America/New_York</span>）由时区数据库维护，自动跟随夏令时：3 月中到 11 月初是 EDT（UTC−4），其余时间是 EST（UTC−5）。<strong>固定偏移</strong>（如 <span class="mono">Etc/GMT+5</span>，即 UTC−5）全年不变。</p>
-  <p>两者冬季一致，夏季差 1 小时。用固定偏移做日报表，夏令时期间的「一天」实际是当地 01:00 到次日 01:00，跨月归属会错。</p>
-  <p>清单里 <strong>UTC−12 到 UTC+12</strong> 那 25 个固定偏移时区，用于只知道偏移、不确定具体城市的场合。注意 IANA 的 <span class="mono">Etc/GMT</span> 符号是反的——<span class="mono">Etc/GMT+8</span> 表示 UTC−08:00，所以这里统一按「固定 UTC±HH:00」显示。</p>
+  <div class="note-kicker">时区基础</div>
+  <h2>为什么同一个城市，有时会差一小时？</h2>
+  <p class="note-lead">因为「命名时区」会随当地规则切换夏令时，而「固定偏移」永远停在同一个 UTC 差值。</p>
+  <div class="zone-explain">
+    <article class="explain-card named-zone">
+      <div class="explain-label"><span class="explain-dot"></span>命名时区</div>
+      <div class="explain-id mono">America/New_York</div>
+      <p>代表一个真实地区。时区数据库会自动处理夏令时、历史规则和未来变更。</p>
+      <div class="rule-line"><span>冬季</span><strong>UTC−05:00</strong><em>EST</em></div>
+      <div class="rule-line active"><span>夏季</span><strong>UTC−04:00</strong><em>EDT</em></div>
+    </article>
+    <article class="explain-card fixed-zone">
+      <div class="explain-label"><span class="explain-dot"></span>固定偏移</div>
+      <div class="explain-id mono">UTC−05:00</div>
+      <p>只表达一个数字差值，不代表具体城市，也不会因为季节改变。</p>
+      <div class="rule-line"><span>全年</span><strong>UTC−05:00</strong><em>固定</em></div>
+      <div class="rule-line muted"><span>夏季</span><strong>仍为 −05:00</strong><em>不切换</em></div>
+    </article>
+  </div>
+  <div class="timeline-note">
+    <span class="timeline-line"></span>
+    <div><strong>差异从这里开始</strong><span>进入夏令时后，纽约的墙上时间会向前拨一小时；固定偏移不会跟着拨。</span></div>
+  </div>
+  <p class="note-foot">建议：涉及会议、日报或跨地区排期时使用命名时区；只有在你明确只需要 UTC 差值时，才使用固定偏移。清单中的 <span class="mono">Etc/GMT+8</span> 采用 IANA 反向符号，页面已统一显示为 UTC−08:00。</p>
   <div class="cmp" id="cmp"></div>
 </section>
 
