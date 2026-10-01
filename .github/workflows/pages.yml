@@ -3,6 +3,10 @@ name: 发布 GitHub Pages
 on:
   push:
     branches: [main]
+  # PR 阶段也跑校验（只 verify、不发布），否则闸门要等合并进 main 才生效 ——
+  # 上一轮 url( 缺右括号正是这样穿透到 main 的。
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -11,7 +15,9 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  # 按 ref 分组：PR 的校验与 main 的发布互不取消（原先共用 `pages` 组，
+  # 开启 cancel-in-progress 后两者会互相打断）
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -128,8 +134,10 @@ jobs:
           JS
 
   # ② 发布：仅在 verify 通过后执行，产物收敛到 _site/
+  # PR 事件下不发布（只借 verify 当门禁），避免对未合并的代码动线上站点
   deploy:
     needs: verify
+    if: github.event_name != 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
