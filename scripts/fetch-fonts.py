@@ -93,7 +93,7 @@ def main():
     ]
     for name, size, f in rows:
         block = f["block"]
-        block = URL_RE.sub("url(fonts/{}".format(name), block)
+        block = URL_RE.sub("url(fonts/{})".format(name), block)
         block = re.sub(r"\n\s*\n", "\n", block)
         css_lines.append("/* {} · {} · {} */".format(f["family"], f["weight"], f["subset"]))
         css_lines.append(block)
