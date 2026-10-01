@@ -2,7 +2,8 @@
    自托管：Manrope + IBM Plex Mono + Noto Sans SC。
    筛选依据「unicode-range ∩ index.html 实际用到的码点」，并逐个分片做子集化；
    中文因此能在**字形不变**的前提下压到几百 KB。
-   字体来源 Google Fonts，SIL Open Font License 1.1。 */
+   字体来源：飞书妙搭（miaoda.feishu.cn）字体 CDN；字体为 Manrope / IBM Plex Mono / Noto Sans SC。
+   SIL Open Font License 1.1。 */
 
 @font-face {
   font-display: swap;

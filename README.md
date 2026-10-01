@@ -24,9 +24,12 @@
 
 字体**自托管**（`fonts/*.woff2` + `fonts.css`），页面没有任何外部运行时依赖 —— 内网、离线环境都能正常显示。
 
+字体经由**飞书妙搭字体 CDN（`miaoda.feishu.cn`）**拉取后本地子集化生成；字体本身为 Manrope / IBM Plex Mono / Noto Sans SC，SIL Open Font License 1.1。
+
 - Manrope（400/500/600/700）· IBM Plex Mono（400/500/600）· Noto Sans SC（中文，400/500/600/700）
 - 中文按**本页实际用到的字**做了分片裁剪：只保留与之相交的字体分片并逐个做子集化，
-  合计约 940 KB / 103 个文件。浏览器靠 `unicode-range` 只下载当前页面用到的那几片。
+  `fonts/` 共 103 个文件、**woff2 净字节合计约 941 KB**（另 `fonts.css` 约 134 KB）。浏览器靠 `unicode-range` 只下载当前页面用到的那几片（运行时约 48 个）。
+  注：`du -sh fonts` 显示约 1.2 MB 是**文件系统簇分配口径**，非真实传输体积。
 - 重新生成（例如后续改动了页面文案、需要补字）：
 
   ```bash
@@ -61,7 +64,8 @@ git push origin main
 - 页面入口：`index.html`
 - 计算逻辑和交互逻辑均以内嵌 JavaScript 实现。
 - 时区计算完全依赖浏览器的 `Intl.DateTimeFormat` 和 IANA 时区数据，不请求后端接口。
-- 页面改版只调整 HTML/CSS 呈现层，未改变时间戳解析、日期解析、DST 处理和收藏逻辑。
+- **时区列表策略**：以浏览器 `Intl.supportedValuesOf('timeZone')` 为准；仅在浏览器不支持时回退到 32 个常用时区的内置表（`FALLBACK_TZ`），并始终补充 25 个浏览器不提供的 `Etc/GMT±` / `UTC±HH:00` 固定偏移，以满足固定偏移查询。注意 IANA 的反号约定（`Etc/GMT+5` 实为 `UTC−05:00`），页面已统一显示为 UTC 值。
+- 呈现层（配色令牌、间距、圆角、阴影、焦点态、过渡）与文档口径做过整理；**计算逻辑**仅对 DST 标准时推断与提示做了修正，数据来源（浏览器 `Intl` + IANA）未变。
 
 ## 兼容性与验收
 
