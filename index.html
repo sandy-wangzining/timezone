@@ -27,8 +27,10 @@
 })();
 </script>
 
-<link rel="preconnect" href="https://miaoda.feishu.cn">
-<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Manrope:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<!-- 字体本地自托管：原先从飞书妙搭的字体 CDN 加载，现改为仓库内 fonts/*.woff2。
+     页面因此没有任何外部运行时依赖，内网与离线环境下也能正常显示。
+     只托管 latin / latin-ext 子集；中文不引网络字体，走系统字体（苹方 / 微软雅黑）。 -->
+<link rel="stylesheet" href="fonts.css">
 
 <style>
 /* ═══════════════════════════════════════════════════════════════════
