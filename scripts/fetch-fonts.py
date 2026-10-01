@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""自托管字体：把外部字体 CDN 换成仓库内的 woff2。
+"""自托管字体：把飞书妙搭字体 CDN（miaoda.feishu.cn）的字体拉取并子集化到仓库内的 woff2。
 
 三种字体：Manrope / IBM Plex Mono（拉丁）+ Noto Sans SC（中文）。
 
@@ -27,6 +27,7 @@ import sys
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONT_DIR = os.path.join(REPO, "fonts")
 INDEX = os.path.join(REPO, "index.html")
+# 字体来源：飞书妙搭（miaoda.feishu.cn）字体 CDN，接口为 Google Fonts 兼容的 css2。
 CSS_BASE = "https://miaoda.feishu.cn/fonts/css2?{}&display=swap"
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36")
@@ -109,7 +110,8 @@ def main():
              "   自托管：Manrope + IBM Plex Mono + Noto Sans SC。",
              "   筛选依据「unicode-range ∩ index.html 实际用到的码点」，并逐个分片做子集化；",
              "   中文因此能在**字形不变**的前提下压到几百 KB。",
-             "   字体来源 Google Fonts，SIL Open Font License 1.1。 */", ""]
+             "   字体来源：飞书妙搭（miaoda.feishu.cn）字体 CDN；字体为 Manrope / IBM Plex Mono / Noto Sans SC。",
+             "   SIL Open Font License 1.1。 */", ""]
     bytetotal, seq = 0, {}
     for family, weight, url, spec, need in jobs:
         key = slug(family) + "-" + weight

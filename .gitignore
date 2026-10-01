@@ -1,0 +1,12 @@
+# macOS 会在访问过的目录里留 .DS_Store，别提交
+.DS_Store
+._*
+
+# Windows / 编辑器产物
+Thumbs.db
+desktop.ini
+*.swp
+
+# 本地预览
+node_modules/
+.venv/

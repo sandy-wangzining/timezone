@@ -15,7 +15,121 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ① 校验闸门：不联网、零新增文件、只用 runner 自带 python3 与 node
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 字体产物自检（离线）
+        run: |
+          python3 - <<'PY'
+          import glob, re, sys
+
+          css  = open('fonts.css', encoding='utf-8').read()
+          html = open('index.html', encoding='utf-8').read()
+
+          # ① fonts.css 中未闭合的 url( 计数必须为 0
+          unclosed = len(re.findall(r'url\(fonts/[^)]*woff2\s+format', css))
+
+          # ③ fonts/ 文件数必须等于 @font-face 数
+          faces = len(re.findall(r'@font-face\s*\{', css))
+          files = len(glob.glob('fonts/*.woff2'))
+
+          # ② index.html 的非 ASCII 码点必须全部落在某个 unicode-range 内
+          # 维护提示：本断言把页面里「新增的非 ASCII 字符」——含 CSS / JS 注释里的字——也当硬门槛。
+          # 一旦 index.html 出现未被现有 unicode-range 覆盖的新字，必须重跑 scripts/fetch-fonts.py
+          # 重新生成 fonts/ 与 fonts.css，否则 CI 会在此拦下。
+          ranges = []
+          for spec in re.findall(r'unicode-range:\s*([^;]+);', css):
+              for part in spec.split(','):
+                  m = re.fullmatch(r'[Uu]\+([0-9A-Fa-f]+)(?:-([0-9A-Fa-f]+))?', part.strip())
+                  if m:
+                      lo = int(m.group(1), 16)
+                      hi = int(m.group(2), 16) if m.group(2) else lo
+                      ranges.append((lo, hi))
+          missing = sorted(c for c in {ord(ch) for ch in html}
+                           if c > 0x7F and not any(lo <= c <= hi for lo, hi in ranges))
+
+          print('① 未闭合 url(           :', unclosed, '（须为 0）')
+          print('③ @font-face / woff2    :', faces, '/', files, '（须相等）')
+          print('② 未覆盖的非 ASCII 码点 :', len(missing), '（须为 0）',
+                ''.join(chr(c) for c in missing[:60]))
+
+          if unclosed or faces != files or missing:
+              sys.exit('字体自检未通过')
+          PY
+
+      - name: 时区计算关键断言（离线，node 内置 ICU）
+        run: |
+          node - <<'JS'
+          const OFFSET = (ts, tz) => {
+            const f = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour12: false,
+              year: 'numeric', month: '2-digit', day: '2-digit',
+              hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const p = {};
+            for (const x of f.formatToParts(new Date(ts))) p[x.type] = x.value;
+            const U = (y, mo, d, h, mi, s) => { const q = new Date(0);
+              q.setUTCFullYear(y, mo, d); q.setUTCHours(h, mi, s, 0); return q.getTime(); };
+            return Math.round((U(+p.year, +p.month - 1, +p.day,
+              +p.hour === 24 ? 0 : +p.hour, +p.minute, +p.second)
+              - Math.floor(ts / 1000) * 1000) / 60000);
+          };
+          /* 与 index.html 中 stdOffsetOf 的「每月 1 日 + 16 日」多采样实现逐条对齐：
+             越界采样点跳过、全无效时退回锚点，保证不抛错、也不写出 Infinity/NaN。 */
+          const U2 = (y, mo, d) => { const q = new Date(0);
+            q.setUTCFullYear(y, mo, d); q.setUTCHours(0, 0, 0, 0); return q.getTime(); };
+          const yearOf = (ts, tz) => +new Intl.DateTimeFormat('en-US',
+            { timeZone: tz, year: 'numeric' }).format(new Date(ts));
+          const STD = (ts, tz) => {
+            const y = yearOf(ts, tz);
+            let lo = Infinity, hi = -Infinity;
+            for (let m = 0; m < 12; m++) for (const d of [1, 16]) {
+              const p = U2(y, m, d);
+              if (!Number.isFinite(p)) continue;
+              const o = OFFSET(p, tz);
+              if (o < lo) lo = o; if (o > hi) hi = o;
+            }
+            if (!Number.isFinite(lo)) { const o = OFFSET(ts, tz); return { std: o, summer: o, hasDst: false }; }
+            return { std: lo, summer: hi, hasDst: lo !== hi };
+          };
+          const ok = (c, m) => { if (!c) { console.error('  ✗ ' + m); process.exit(1); }
+                                 console.log('  ✓ ' + m); };
+
+          const Y2026 = Date.UTC(2026, 6, 1);
+          const lh = STD(Y2026, 'Australia/Lord_Howe');
+          ok(lh.hasDst && lh.summer === 660, 'Lord_Howe 夏令时 = UTC+11:00（660 分钟，非 +11:30）');
+          const tr = STD(Y2026, 'Antarctica/Troll');
+          ok(tr.hasDst && tr.summer === 120, 'Troll 夏令时 = UTC+02:00（120 分钟）');
+          const cs = STD(Y2026, 'Africa/Casablanca');
+          ok(cs.hasDst && cs.std === 0 && cs.summer === 60,
+             'Casablanca 判定「有夏令时」（斋月 +00 / 其余 +01）');
+          ok(OFFSET(Date.UTC(2026, 2, 15), 'Africa/Casablanca') === 0,
+             'Casablanca 2026-03-15（斋月）读数 = UTC+00:00');
+          try {
+            const cn = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Katmandu' })
+                              .resolvedOptions().timeZone;
+            console.log('  · ICU 返回加德满都键名：' + cn);
+          } catch (e) {
+            console.log('  · 本 ICU 无 Asia/Katmandu，跳过（不影响结论）');
+          }
+          /* 极值回归：±JS Date 上下界时间戳不得抛错，且 std/summer 必须是有限值
+             （上界 +8640000000000000 会推出 year=275760，采样点越过 Date 上界） */
+          for (const v of [8640000000000000, -8640000000000000])
+            for (const z of ['America/New_York', 'UTC', 'Pacific/Kiritimati']) {
+              let r, threw = null;
+              try { r = STD(v, z); } catch (e) { threw = e; }
+              ok(!threw && Number.isFinite(r.std) && Number.isFinite(r.summer),
+                 '极值 stdOffsetOf(' + v + ', ' + z + ') 不抛且有限 = '
+                 + (threw ? threw.constructor.name + ': ' + threw.message : JSON.stringify(r)));
+            }
+          console.log('时区断言全部通过');
+          JS
+
+  # ② 发布：仅在 verify 通过后执行，产物收敛到 _site/
   deploy:
+    needs: verify
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -23,12 +137,17 @@ jobs:
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
+      - name: 组装站点产物（只含站点文件）
+        run: |
+          mkdir -p _site
+          cp index.html fonts.css _site/
+          cp -r fonts _site/fonts
       - name: 配置 Pages
         uses: actions/configure-pages@v5
       - name: 上传页面
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
       - name: 发布页面
         id: deployment
         uses: actions/deploy-pages@v4
