@@ -5,7 +5,6 @@
 ## 在线地址
 
 - GitHub Pages：<https://sandy-wangzining.github.io/timezone/>
-- 飞书妙搭：<https://presence.feishu.cn/page/Pc1MmZ834dv1N5aAlZ2cR4canjg>
 - GitHub 仓库：<https://github.com/sandy-wangzining/timezone>
 
 如果 GitHub Pages 页面看起来仍是旧样式，请使用无痕窗口打开，或在地址后增加查询参数，例如：
@@ -33,6 +32,24 @@
 
 主题由 `<head>` 里的一小段脚本在样式表之前写进 `<html data-theme>`，因此不会出现首屏闪白。
 页面渲染依赖 JS，跟随系统模式也由 JS 读取媒体查询后再落到 `data-theme`。
+
+## 字体
+
+字体**自托管**，页面没有任何外部运行时依赖——内网、离线环境都能正常显示。
+
+- 文件：`fonts/*.woff2`（14 个，合计约 240 KB）+ `fonts.css`（`@font-face` 声明）。
+- 范围：**Manrope**（400/500/600/700）与 **IBM Plex Mono**（400/500/600），
+  只保留 `latin` 与 `latin-ext` 子集；cyrillic / greek / vietnamese 对本工具无意义，不下载。
+- **中文不引网络字体**，走系统字体（macOS 苹方 / Windows 雅黑）。
+  Noto Sans SC 会被切成上百个 `unicode-range` 分片、全量托管有好几 MB，
+  对一个纯静态小工具来说代价过高；而中文用系统字体本来就是最常见做法。
+- 重新拉取（例如需要增删字重时）：
+
+  ```bash
+  python3 scripts/fetch-fonts.py
+  ```
+
+  脚本会重新下载并覆盖 `fonts.css`，**不要手工编辑这两个产物**。
 
 ## 本地运行
 
@@ -87,7 +104,10 @@ git push origin main
 ## 文件
 
 ```
-index.html   # 全部页面、样式与脚本
+index.html                    # 全部页面、样式与脚本
+fonts.css                     # @font-face 声明（由 scripts/fetch-fonts.py 生成）
+fonts/*.woff2                 # 自托管字体，14 个约 240 KB
+scripts/fetch-fonts.py        # 字体拉取脚本
 README.md
 .gitignore
 .github/workflows/pages.yml
